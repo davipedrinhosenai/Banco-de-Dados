@@ -1,31 +1,31 @@
-CREATE TABLE clientes (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL,
-    ativo BOOLEAN DEFAULT TRUE
+create table clientes (
+    id serial primary key,
+    nome varchar(100) not null,
+    email varchar(100) not null,
+    ativo boolean default true
 );
 
-CREATE TABLE clientes_deletados_log (
-    id SERIAL PRIMARY KEY,
-    cliente_id INT,
-    nome VARCHAR(100),
-    email VARCHAR(100),
-    data_remocao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+create table clientes_deletados_log (
+    id serial primary key,
+    cliente_id int,
+    nome varchar(100),
+    email varchar(100),
+    data_remocao timestamp default current_timestamp
 );
 
-CREATE OR REPLACE FUNCTION fn_soft_delete_cliente()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO clientes_deletados_log (cliente_id, nome, email)
-    VALUES (OLD.id, OLD.nome, OLD.email);
+create or replace function fn_soft_delete_cliente()
+returns trigger as $$
+begin
+    insert into clientes_deletados_log (cliente_id, nome, email)
+    values (old.id, old.nome, old.email);
 
-    UPDATE clientes SET ativo = FALSE WHERE id = OLD.id;
+    update clientes set ativo = false where id = old.id;
 
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
+    return null;
+end;
+$$ language plpgsql;
 
-CREATE TRIGGER trg_soft_delete_cliente
-BEFORE DELETE ON clientes
-FOR EACH ROW
-EXECUTE FUNCTION fn_soft_delete_cliente();
+create trigger trg_soft_delete_cliente
+before delete on clientes
+for each row
+execute function fn_soft_delete_cliente();
