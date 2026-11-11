@@ -99,3 +99,174 @@ select * from colaboradores;
 select * from projetos;
 select * from tarefas;
 select * from historico_tarefas;
+
+
+-- funcao de autenticacao
+
+create or replace function fn_autenticar_usuario(
+    p_email varchar,
+    p_senha varchar
+)
+returns text
+language plpgsql
+as $$
+declare
+    usuario_encontrado colaboradores%rowtype;
+begin
+    select *
+    into usuario_encontrado
+    from colaboradores
+    where email = p_email;
+
+    if not found then
+        return 'email ou senha invalidos';
+    end if;
+
+    if usuario_encontrado.senha_hash <> p_senha then
+        return 'email ou senha invalidos';
+    end if;
+
+    if usuario_encontrado.ativo = false then
+        return 'colaborador inativo';
+    end if;
+
+    return 'autenticacao realizada com sucesso';
+end;
+$$;
+
+
+-- funcao de busca de colaboradores
+
+create or replace function fn_buscar_colaboradores(
+    p_termo varchar
+)
+returns table (
+    id int,
+    nome varchar,
+    email varchar,
+    ativo boolean
+)
+language plpgsql
+as $$
+begin
+    return query
+    select
+        c.id,
+        c.nome,
+        c.email,
+        c.ativo
+    from colaboradores c
+    where c.nome ilike '%' || p_termo || '%'
+       or c.email ilike '%' || p_termo || '%';
+end;
+$$;
+
+
+-- funcao para validar tarefas
+
+create or replace function fn_validar_tarefa()
+returns trigger
+language plpgsql
+as $$
+declare
+    colaborador_ativo boolean;
+begin
+    -- verifica se o colaborador esta ativo
+    select ativo
+    into colaborador_ativo
+    from colaboradores
+    where id = new.colaborador_id;
+
+    if colaborador_ativo is distinct from true then
+        raise exception 'colaborador inexistente ou inativo';
+    end if;
+
+    -- registra a data de criacao
+    new.data_criacao := current_timestamp;
+
+    return new;
+end;
+$$;
+
+
+-- funcao para registrar o historico
+
+create or replace function fn_registrar_historico()
+returns trigger
+language plpgsql
+as $$
+begin
+    insert into historico_tarefas (tarefa_id, descricao)
+    values (new.id, 'tarefa cadastrada no sistema');
+
+    return new;
+end;
+$$;
+
+
+-- views
+
+-- view do painel principal
+
+create or replace view vw_painel_principal as
+select
+    c.nome as colaborador,
+    t.titulo as tarefa,
+    p.nome as projeto,
+    t.data_entrega,
+    t.status
+from tarefas t
+inner join colaboradores c
+    on t.colaborador_id = c.id
+inner join projetos p
+    on t.projeto_id = p.id;
+
+
+-- view do cronograma de prazos
+
+create or replace view vw_cronograma_prazos as
+select
+    t.id,
+    t.titulo,
+    c.nome as colaborador,
+    p.nome as projeto,
+    t.status,
+    t.data_entrega,
+    (t.data_entrega - current_date) as dias_restantes
+from tarefas t
+inner join colaboradores c
+    on t.colaborador_id = c.id
+inner join projetos p
+    on t.projeto_id = p.id
+order by t.data_entrega asc;
+
+
+-- triggers
+
+-- trigger para validar tarefas
+
+create trigger trg_validar_tarefa
+before insert on tarefas
+for each row
+execute function fn_validar_tarefa();
+
+
+-- trigger para registrar o historico
+
+create trigger trg_registrar_historico
+after insert on tarefas
+for each row
+execute function fn_registrar_historico();
+
+
+-- testes das funcoes e views
+
+select fn_autenticar_usuario('joao@email.com', 'hash123');
+
+select * from fn_buscar_colaboradores('joao');
+
+select * from vw_painel_principal;
+
+select * from vw_cronograma_prazos;
+
+select * from historico_tarefas;
