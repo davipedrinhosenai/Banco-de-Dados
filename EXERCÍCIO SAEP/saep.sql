@@ -24,6 +24,7 @@ create table tarefas (
     id serial primary key,
     titulo varchar(150) not null,
     descricao text,
+    categoria varchar(50) not null,
     data_criacao timestamp default current_timestamp,
     data_agendamento date not null,
     data_entrega date not null,
@@ -72,6 +73,7 @@ values
 insert into tarefas (
     titulo,
     descricao,
+    categoria,
     data_agendamento,
     data_entrega,
     status,
@@ -79,11 +81,11 @@ insert into tarefas (
     projeto_id
 )
 values
-('criar tela de login', 'desenvolver a tela de autenticacao', '2026-11-11', '2026-11-15', 'pendente', 1, 1),
+('criar tela de login', 'desenvolver a tela de autenticacao', 'desenvolvimento', '2026-11-11', '2026-11-15', 'pendente', 1, 1),
 
-('documentar funcionalidades', 'documentar as funcionalidades do sistema', '2026-11-11', '2026-11-20', 'em andamento', 2, 1),
+('documentar funcionalidades', 'documentar as funcionalidades do sistema', 'documentacao', '2026-11-11', '2026-11-20', 'em andamento', 2, 1),
 
-('planejar interface', 'definir o planejamento visual do aplicativo', '2026-11-12', '2026-11-25', 'pendente', 1, 3);
+('planejar interface', 'definir o planejamento visual do aplicativo', 'planejamento', '2026-11-12', '2026-11-25', 'pendente', 1, 3);
 
 
 insert into historico_tarefas (tarefa_id, descricao)
@@ -212,14 +214,12 @@ create or replace view vw_painel_principal as
 select
     c.nome as colaborador,
     t.titulo as tarefa,
-    p.nome as projeto,
+    t.categoria,
     t.data_entrega,
     t.status
 from tarefas t
 inner join colaboradores c
-    on t.colaborador_id = c.id
-inner join projetos p
-    on t.projeto_id = p.id;
+    on t.colaborador_id = c.id;
 
 
 -- view do cronograma de prazos
@@ -230,6 +230,7 @@ select
     t.titulo,
     c.nome as colaborador,
     p.nome as projeto,
+    t.categoria,
     t.status,
     t.data_entrega,
     (t.data_entrega - current_date) as dias_restantes
